@@ -1,6 +1,6 @@
 //go:generate stringer -type=bootConfigRole -trimprefix=bootConfigRole -linecomment
 
-package main
+package amt
 
 import (
 	"fmt"

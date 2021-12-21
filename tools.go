@@ -1,6 +1,6 @@
 //go:build tools
 
-package main
+package amt
 
 import (
 	_ "golang.org/x/lint/golint"
