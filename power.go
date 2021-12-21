@@ -1,10 +1,10 @@
 //go:generate stringer -type=powerState -trimprefix=powerState -linecomment
 
-package amt
+package main
 
 import (
-	"log"
 	"fmt"
+	"log"
 	"strconv"
 
 	"github.com/VictorLowther/simplexml/dom"

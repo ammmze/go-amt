@@ -1,4 +1,4 @@
-package amt
+package main
 
 // Connection properties for a Client
 type Connection struct {
