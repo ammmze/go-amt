@@ -4,10 +4,12 @@ import (
 	"fmt"
 
 	"github.com/ammmze/wsman"
+	"github.com/go-logr/logr"
 )
 
 // Client used to perform actions on the machine
 type Client struct {
+	logger      logr.Logger
 	wsManClient *wsman.Client
 }
 
@@ -27,7 +29,11 @@ func NewClient(connection Connection) (*Client, error) {
 		return nil, err
 	}
 	wsmanClient.Debug = connection.Debug
+	if connection.Logger.GetSink() == nil {
+		connection.Logger = logr.Discard()
+	}
 	return &Client{
+		logger:      connection.Logger,
 		wsManClient: wsmanClient,
 	}, nil
 }

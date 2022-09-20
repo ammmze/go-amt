@@ -5,6 +5,7 @@ go 1.17
 require (
 	github.com/VictorLowther/simplexml v0.0.0-20180716164440-0bff93621230
 	github.com/ammmze/wsman v0.0.2
+	github.com/go-logr/logr v1.2.3
 	github.com/stretchr/testify v1.7.0
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616
 	golang.org/x/tools v0.1.8

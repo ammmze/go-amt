@@ -3,12 +3,12 @@
 package amt
 
 import (
-	"log"
 	"fmt"
 	"strconv"
 
 	"github.com/VictorLowther/simplexml/dom"
 	"github.com/ammmze/wsman"
+	"github.com/go-logr/logr"
 )
 
 type powerState int
@@ -103,7 +103,7 @@ func powerOff(client *Client) error {
 	if err != nil {
 		return err
 	}
-	if isPoweredOnGivenStatus(status) {
+	if isPoweredOnGivenStatus(client.logger, status) {
 		request := selectNextState(getPowerOffStates(), status.AvailableRequestedpowerStates)
 
 		if request != powerStateUnknown {
@@ -121,7 +121,7 @@ func powerCycle(client *Client) error {
 		return err
 	}
 
-	if !isPoweredOnGivenStatus(status) {
+	if !isPoweredOnGivenStatus(client.logger, status) {
 		return powerOn(client)
 	}
 
@@ -140,11 +140,11 @@ func isPoweredOn(client *Client) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return isPoweredOnGivenStatus(status), nil
+	return isPoweredOnGivenStatus(client.logger, status), nil
 }
 
-func isPoweredOnGivenStatus(status *powerStatus) bool {
-	log.Printf("Current state: %s; Available states: %s\n", status.powerState, status.AvailableRequestedpowerStates)
+func isPoweredOnGivenStatus(log logr.Logger, status *powerStatus) bool {
+	log.V(1).Info("states", "currentState", fmt.Sprintf("%v", status.powerState), "availableStates", fmt.Sprintf("%v", status.AvailableRequestedpowerStates))
 	switch status.powerState {
 	case powerStateOn:
 		return true
@@ -160,10 +160,9 @@ func requestpowerState(client *Client, requestedpowerState powerState) (int, err
 		return -1, err
 	}
 	if !containspowerState(status.AvailableRequestedpowerStates, requestedpowerState) {
-		// fmt.Printf("there is no implemented transition state to <%d> from the current machine state <%d>. available states are: %v\n", requestedpowerState, status.powerState, status.AvailableRequestedpowerStates)
 		return -1, fmt.Errorf("there is no implemented transition state to <%d> from the current machine state <%d>. available states are: %v", requestedpowerState, status.powerState, status.AvailableRequestedpowerStates)
 	}
-	fmt.Printf("sending request to machine: <%s>\n", requestedpowerState)
+	client.logger.V(1).Info("sending request to machine", "PowerState", requestedpowerState)
 	message := client.wsManClient.Invoke(resourceCIMPowerManagementService, "RequestPowerStateChange")
 	message.Parameters("PowerState", fmt.Sprint(int(requestedpowerState)))
 	managedElement, err := makeManagedElement(client, message)
@@ -185,7 +184,7 @@ func requestpowerState(client *Client, requestedpowerState powerState) (int, err
 	if err != nil {
 		return -1, err
 	}
-	fmt.Printf("RequestPowerState response <%d>\n", val)
+	client.logger.V(1).Info("RequestPowerState response", "response", val)
 	return val, nil
 }
 
