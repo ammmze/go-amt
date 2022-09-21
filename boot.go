@@ -3,6 +3,7 @@
 package amt
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 
@@ -20,8 +21,8 @@ const (
 	bootConfigRoleVendorSpecified bootConfigRole = 32768 // 32768..65535
 )
 
-func setBootConfigRole(client *Client, role bootConfigRole) error {
-	bootConfigRef, err := getBootConfigSettingRef(client, "Intel(r) AMT: Boot Configuration 0")
+func setBootConfigRole(ctx context.Context, client *Client, role bootConfigRole) error {
+	bootConfigRef, err := getBootConfigSettingRef(ctx, client, "Intel(r) AMT: Boot Configuration 0")
 	if err != nil {
 		return err
 	}
@@ -32,19 +33,19 @@ func setBootConfigRole(client *Client, role bootConfigRole) error {
 	message.AddParameter(bootConfigSetting)
 	message.Parameters("Role", strconv.Itoa(int(role)))
 
-	_, err = sendMessageForReturnValueInt(message)
+	_, err = sendMessageForReturnValueInt(ctx, message)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func changeBootOrder(client *Client, items []string) error {
+func changeBootOrder(ctx context.Context, client *Client, items []string) error {
 	message := client.wsManClient.Invoke(resourceCIMBootConfigSetting, "ChangeBootOrder")
 
 	if len(items) > 0 {
 		// TODO: multiple?
-		pxeEndpointRef, err := getBootSourceRef(client, "Intel(r) AMT: Force PXE Boot")
+		pxeEndpointRef, err := getBootSourceRef(ctx, client, "Intel(r) AMT: Force PXE Boot")
 		if err != nil {
 			return err
 		}
@@ -53,16 +54,16 @@ func changeBootOrder(client *Client, items []string) error {
 		message.AddParameter(sourceParam)
 	}
 
-	_, err := sendMessageForReturnValueInt(message)
+	_, err := sendMessageForReturnValueInt(ctx, message)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func getBootSettingData(client *Client) ([]*dom.Element, error) {
+func getBootSettingData(ctx context.Context, client *Client) ([]*dom.Element, error) {
 	msg := client.wsManClient.Get(resourceAMTBootSettingData)
-	response, err := msg.Send()
+	response, err := msg.Send(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -73,8 +74,8 @@ func getBootSettingData(client *Client) ([]*dom.Element, error) {
 	return data.Children(), nil
 }
 
-func setBootSettingData(client *Client) error {
-	bootSettings, err := getBootSettingData(client)
+func setBootSettingData(ctx context.Context, client *Client) error {
+	bootSettings, err := getBootSettingData(ctx, client)
 	if err != nil {
 		return err
 	}
@@ -109,12 +110,12 @@ func setBootSettingData(client *Client) error {
 	data := dom.Elem("AMT_BootSettingData", resourceAMTBootSettingData)
 	data.AddChildren(settingsToKeep...)
 	msg.SetBody(data)
-	_, err = msg.Send()
+	_, err = msg.Send(ctx)
 
 	return err
 }
 
-func setPXE(client *Client) error {
+func setPXE(ctx context.Context, client *Client) error {
 	// clear existing boot order per meshcommander's implementation...
 	// "Set the boot order to null, this is needed for some AMT versions that don't clear this automatically."
 	// err := changeBootOrder(client, []string{})
@@ -122,17 +123,17 @@ func setPXE(client *Client) error {
 	// 	return err
 	// }
 
-	err := setBootSettingData(client)
+	err := setBootSettingData(ctx, client)
 	if err != nil {
 		return err
 	}
 
-	err = setBootConfigRole(client, bootConfigRoleIsNextSingleUse)
+	err = setBootConfigRole(ctx, client, bootConfigRoleIsNextSingleUse)
 	if err != nil {
 		return err
 	}
 
-	err = changeBootOrder(client, []string{"Intel(r) AMT: Force PXE Boot"})
+	err = changeBootOrder(ctx, client, []string{"Intel(r) AMT: Force PXE Boot"})
 	if err != nil {
 		return err
 	}
@@ -140,10 +141,10 @@ func setPXE(client *Client) error {
 	return nil
 }
 
-func getBootConfigSettingRef(client *Client, name string) (*dom.Element, error) {
-	return getEndpointReferenceByInstanceID(client, resourceCIMBootConfigSetting, name)
+func getBootConfigSettingRef(ctx context.Context, client *Client, name string) (*dom.Element, error) {
+	return getEndpointReferenceByInstanceID(ctx, client, resourceCIMBootConfigSetting, name)
 }
 
-func getBootSourceRef(client *Client, name string) (*dom.Element, error) {
-	return getEndpointReferenceByInstanceID(client, resourceCIMBootSourceSetting, name)
+func getBootSourceRef(ctx context.Context, client *Client, name string) (*dom.Element, error) {
+	return getEndpointReferenceByInstanceID(ctx, client, resourceCIMBootSourceSetting, name)
 }

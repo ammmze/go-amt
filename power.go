@@ -3,6 +3,7 @@
 package amt
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 
@@ -44,11 +45,11 @@ type powerStatus struct {
 	RequestedpowerState           powerState
 }
 
-func getPowerStatus(client *Client) (*powerStatus, error) {
+func getPowerStatus(ctx context.Context, client *Client) (*powerStatus, error) {
 	// https://software.intel.com/sites/manageability/AMT_Implementation_and_Reference_Guide/default.htm?turl=WordDocuments%2Fgetsystempowerstate.htm
 	message := client.wsManClient.Enumerate(resourceCIMAssociatedPowerManagementService)
 
-	response, err := message.Send()
+	response, err := message.Send(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -86,20 +87,20 @@ func getPowerStatus(client *Client) (*powerStatus, error) {
 	return status, nil
 }
 
-func powerOn(client *Client) error {
-	isOn, err := isPoweredOn(client)
+func powerOn(ctx context.Context, client *Client) error {
+	isOn, err := isPoweredOn(ctx, client)
 	if err != nil {
 		return err
 	}
 	if isOn {
 		return nil
 	}
-	_, err = requestpowerState(client, powerStateOn)
+	_, err = requestpowerState(ctx, client, powerStateOn)
 	return err
 }
 
-func powerOff(client *Client) error {
-	status, err := getPowerStatus(client)
+func powerOff(ctx context.Context, client *Client) error {
+	status, err := getPowerStatus(ctx, client)
 	if err != nil {
 		return err
 	}
@@ -107,7 +108,7 @@ func powerOff(client *Client) error {
 		request := selectNextState(getPowerOffStates(), status.AvailableRequestedpowerStates)
 
 		if request != powerStateUnknown {
-			_, err := requestpowerState(client, request)
+			_, err := requestpowerState(ctx, client, request)
 			return err
 		}
 		return fmt.Errorf("there is no implemented transition state to power off the machine from the current machine state %d. available states are: %v", status.powerState, status.AvailableRequestedpowerStates)
@@ -115,28 +116,28 @@ func powerOff(client *Client) error {
 	return nil
 }
 
-func powerCycle(client *Client) error {
-	status, err := getPowerStatus(client)
+func powerCycle(ctx context.Context, client *Client) error {
+	status, err := getPowerStatus(ctx, client)
 	if err != nil {
 		return err
 	}
 
 	if !isPoweredOnGivenStatus(client.logger, status) {
-		return powerOn(client)
+		return powerOn(ctx, client)
 	}
 
 	request := selectNextState(getPowerCycleStates(), status.AvailableRequestedpowerStates)
 
 	if request >= 0 {
-		_, err := requestpowerState(client, request)
+		_, err := requestpowerState(ctx, client, request)
 		return err
 	}
 
 	return fmt.Errorf("there is no implemented transition state to power cycle the machine from the current machine state %d. available states are: %v", status.powerState, status.AvailableRequestedpowerStates)
 }
 
-func isPoweredOn(client *Client) (bool, error) {
-	status, err := getPowerStatus(client)
+func isPoweredOn(ctx context.Context, client *Client) (bool, error) {
+	status, err := getPowerStatus(ctx, client)
 	if err != nil {
 		return false, err
 	}
@@ -154,8 +155,8 @@ func isPoweredOnGivenStatus(log logr.Logger, status *powerStatus) bool {
 }
 
 // https://software.intel.com/sites/manageability/AMT_Implementation_and_Reference_Guide/default.htm?turl=WordDocuments%2Fchangesystempowerstate.htm
-func requestpowerState(client *Client, requestedpowerState powerState) (int, error) {
-	status, err := getPowerStatus(client)
+func requestpowerState(ctx context.Context, client *Client, requestedpowerState powerState) (int, error) {
+	status, err := getPowerStatus(ctx, client)
 	if err != nil {
 		return -1, err
 	}
@@ -165,13 +166,13 @@ func requestpowerState(client *Client, requestedpowerState powerState) (int, err
 	client.logger.V(1).Info("sending request to machine", "PowerState", requestedpowerState)
 	message := client.wsManClient.Invoke(resourceCIMPowerManagementService, "RequestPowerStateChange")
 	message.Parameters("PowerState", fmt.Sprint(int(requestedpowerState)))
-	managedElement, err := makeManagedElement(client, message)
+	managedElement, err := makeManagedElement(ctx, client, message)
 	if err != nil {
 		return -1, err
 	}
 	message.AddParameter(managedElement)
 
-	response, err := message.Send()
+	response, err := message.Send(ctx)
 	if err != nil {
 		return -1, err
 	}
@@ -203,8 +204,8 @@ func getPowerManagementElements(response *wsman.Message) ([]*dom.Element, error)
 	return nil, fmt.Errorf("did not receive %s enumeration item", "CIM_AssociatedPowerManagementService")
 }
 
-func makeManagedElement(client *Client, message *wsman.Message) (*dom.Element, error) {
-	managedSystemRef, err := getComputerSystemRef(client, "ManagedSystem")
+func makeManagedElement(ctx context.Context, client *Client, message *wsman.Message) (*dom.Element, error) {
+	managedSystemRef, err := getComputerSystemRef(ctx, client, "ManagedSystem")
 	if err != nil {
 		return nil, err
 	}

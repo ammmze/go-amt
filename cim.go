@@ -1,6 +1,7 @@
 package amt
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 
@@ -18,10 +19,10 @@ const (
 	resourceCIMComputerSystem                   = "http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ComputerSystem"
 )
 
-func getEndpointReferenceBySelector(client *Client, namespace string, selectorName string, selectorValue string) (*dom.Element, error) {
+func getEndpointReferenceBySelector(ctx context.Context, client *Client, namespace string, selectorName string, selectorValue string) (*dom.Element, error) {
 	message := client.wsManClient.EnumerateEPR(namespace)
 
-	response, err := message.Send()
+	response, err := message.Send(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -40,12 +41,12 @@ func getEndpointReferenceBySelector(client *Client, namespace string, selectorNa
 	return nil, fmt.Errorf("could not find endpoint reference with selector %s=%s", selectorName, selectorValue)
 }
 
-func getEndpointReferenceByInstanceID(client *Client, namespace string, instanceID string) (*dom.Element, error) {
-	return getEndpointReferenceBySelector(client, namespace, "InstanceID", instanceID)
+func getEndpointReferenceByInstanceID(ctx context.Context, client *Client, namespace string, instanceID string) (*dom.Element, error) {
+	return getEndpointReferenceBySelector(ctx, client, namespace, "InstanceID", instanceID)
 }
 
-func getComputerSystemRef(client *Client, name string) (*dom.Element, error) {
-	return getEndpointReferenceBySelector(client, resourceCIMComputerSystem, "Name", name)
+func getComputerSystemRef(ctx context.Context, client *Client, name string) (*dom.Element, error) {
+	return getEndpointReferenceBySelector(ctx, client, resourceCIMComputerSystem, "Name", name)
 }
 
 func getReturnValueInt(response *wsman.Message) (int, error) {
@@ -56,8 +57,8 @@ func getReturnValueInt(response *wsman.Message) (int, error) {
 	return strconv.Atoi(string(returnElement.Content))
 }
 
-func sendMessageForReturnValueInt(message *wsman.Message) (int, error) {
-	response, err := message.Send()
+func sendMessageForReturnValueInt(ctx context.Context, message *wsman.Message) (int, error) {
+	response, err := message.Send(ctx)
 	if err != nil {
 		return -1, err
 	}

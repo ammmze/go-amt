@@ -3,6 +3,7 @@ package amt
 import (
 	"testing"
 
+	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -27,11 +28,11 @@ func TestSelectNextState_When_MultipleOfTheRequestedStatesAreAvailable_Expect_Fi
 
 func TestIsPoweredOnGivenStatus_When_powerStateOn_Expect_True(t *testing.T) {
 	status := &powerStatus{powerState: powerStateOn}
-	actual := isPoweredOnGivenStatus(status)
+	actual := isPoweredOnGivenStatus(logr.Discard(), status)
 	assert.Equal(t, true, actual)
 }
 func TestIsPoweredOnGivenStatus_When_powerStateOffSoft_Expect_False(t *testing.T) {
 	status := &powerStatus{powerState: powerStateOffSoft}
-	actual := isPoweredOnGivenStatus(status)
+	actual := isPoweredOnGivenStatus(logr.Discard(), status)
 	assert.Equal(t, false, actual)
 }
